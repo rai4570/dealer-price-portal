@@ -56,25 +56,25 @@ function formatNumber(value) {
   return num.toLocaleString("ja-JP");
 }
 
-function TruncateCell({ value, width, bold = false, onOpen }) {
+function HoverCell({ value, width, bold = false }) {
+  const text = String(value ?? "");
   return (
     <td
-      onClick={() => onOpen(value)}
-      title="クリックで全文表示"
+      title={text}
       style={{
         border: "1px solid #ddd",
         padding: 8,
         width,
+        minWidth: width,
         maxWidth: width,
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
         fontWeight: bold ? "bold" : "normal",
-        cursor: "pointer",
-        background: "#fff",
+        position: "relative",
       }}
     >
-      {value}
+      {text}
     </td>
   );
 }
@@ -98,12 +98,9 @@ export default function Home({ rawData, error }) {
   const [currentDealer, setCurrentDealer] = useState(null);
   const [loginError, setLoginError] = useState("");
   const [tab, setTab] = useState("products");
-
   const [searchText, setSearchText] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-
-  const [popupText, setPopupText] = useState("");
-  const [popupTitle, setPopupTitle] = useState("");
+  const [openRow, setOpenRow] = useState(null);
 
   const productMap = useMemo(() => {
     const map = new Map();
@@ -119,9 +116,10 @@ export default function Home({ rawData, error }) {
           String(p["販売店ID"]).trim() === String(currentDealer["販売店ID"]).trim() &&
           normalizePublic(p["公開"])
       )
-      .map((p) => {
+      .map((p, idx) => {
         const product = productMap.get(String(p["商品ID"]).trim()) || {};
         return {
+          _rowId: `${p["商品ID"]}-${idx}`,
           商品ID: p["商品ID"],
           メーカー: product["メーカー"] || "",
           商品名: product["商品名"] || "",
@@ -158,11 +156,16 @@ export default function Home({ rawData, error }) {
 
   const dealerWorks = useMemo(() => {
     if (!currentDealer) return [];
-    return works.filter(
-      (w) =>
-        String(w["販売店ID"]).trim() === String(currentDealer["販売店ID"]).trim() &&
-        normalizePublic(w["公開"])
-    );
+    return works
+      .filter(
+        (w) =>
+          String(w["販売店ID"]).trim() === String(currentDealer["販売店ID"]).trim() &&
+          normalizePublic(w["公開"])
+      )
+      .map((w, idx) => ({
+        _rowId: `work-${idx}`,
+        ...w,
+      }));
   }, [currentDealer, works]);
 
   const filteredDealerWorks = useMemo(() => {
@@ -200,20 +203,15 @@ export default function Home({ rawData, error }) {
     setPassword("");
     setSearchText("");
     setCategoryFilter("");
+    setOpenRow(null);
   };
 
-  const openPopup = (title, value) => {
-    setPopupTitle(title);
-    setPopupText(String(value ?? ""));
-  };
-
-  const closePopup = () => {
-    setPopupTitle("");
-    setPopupText("");
+  const toggleRow = (id) => {
+    setOpenRow((prev) => (prev === id ? null : id));
   };
 
   return (
-    <div style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 1500, margin: "0 auto" }}>
+    <div style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 1650, margin: "0 auto" }}>
       <h1>販売店専用価格ポータル</h1>
 
       {error && (
@@ -251,7 +249,10 @@ export default function Home({ rawData, error }) {
 
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             <button
-              onClick={() => setTab("products")}
+              onClick={() => {
+                setTab("products");
+                setOpenRow(null);
+              }}
               style={{
                 padding: "10px 16px",
                 background: tab === "products" ? "#111" : "#eee",
@@ -263,7 +264,10 @@ export default function Home({ rawData, error }) {
               商品価格
             </button>
             <button
-              onClick={() => setTab("works")}
+              onClick={() => {
+                setTab("works");
+                setOpenRow(null);
+              }}
               style={{
                 padding: "10px 16px",
                 background: tab === "works" ? "#111" : "#eee",
@@ -303,68 +307,69 @@ export default function Home({ rawData, error }) {
               <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                 <thead>
                   <tr>
-                    <th style={thStyle}>メーカー</th>
-                    <th style={thStyle}>商品名</th>
-                    <th style={thStyle}>型番</th>
-                    <th style={thStyle}>定価</th>
-                    <th style={thStyle}>販売価格</th>
-                    <th style={thStyle}>カテゴリ</th>
-                    <th style={thStyle}>備考</th>
-                    <th style={thStyle}>更新日</th>
+                    <th style={{ ...thStyle, width: 90 }}>メーカー</th>
+                    <th style={{ ...thStyle, width: 190 }}>商品名</th>
+                    <th style={{ ...thStyle, width: 170 }}>型番</th>
+                    <th style={{ ...thStyle, width: 80 }}>定価</th>
+                    <th style={{ ...thStyle, width: 90 }}>販売価格</th>
+                    <th style={{ ...thStyle, width: 110 }}>カテゴリ</th>
+                    <th style={{ ...thStyle, width: 480 }}>備考</th>
+                    <th style={{ ...thStyle, width: 90 }}>更新日</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDealerPrices.map((row, i) => (
-                    <tr key={i}>
-                      <TruncateCell value={row["メーカー"]} width={100} onOpen={(v) => openPopup("メーカー", v)} />
-                      <TruncateCell value={row["商品名"]} width={190} onOpen={(v) => openPopup("商品名", v)} />
-                      <TruncateCell value={row["型番"]} width={150} onOpen={(v) => openPopup("型番", v)} />
-                      <TruncateCell
-                        value={formatNumber(row["定価"])}
-                        width={80}
-                        onOpen={(v) => openPopup("定価", v)}
-                      />
-                      <TruncateCell
-                        value={formatNumber(row["販売価格"])}
-                        width={90}
-                        bold
-                        onOpen={(v) => openPopup("販売価格", v)}
-                      />
-                      <TruncateCell value={row["カテゴリ"]} width={110} onOpen={(v) => openPopup("カテゴリ", v)} />
-
-                      <td
-                        onClick={() => openPopup("備考", row["備考"])}
-                        title="クリックで全文表示"
-                        style={{
-                          border: "1px solid #ddd",
-                          padding: 8,
-                          width: 420,
-                          maxWidth: 420,
-                          cursor: "pointer",
-                          verticalAlign: "top",
-                          background: "#fffbe6",
-                        }}
+                  {filteredDealerPrices.map((row) => (
+                    <>
+                      <tr
+                        key={row._rowId}
+                        onClick={() => toggleRow(row._rowId)}
+                        style={{ cursor: "pointer" }}
+                        title="クリックでこの行の詳細を表示"
                       >
-                        <div
+                        <HoverCell value={row["メーカー"]} width={90} />
+                        <HoverCell value={row["商品名"]} width={190} />
+                        <HoverCell value={row["型番"]} width={170} />
+                        <HoverCell value={formatNumber(row["定価"])} width={80} />
+                        <HoverCell value={formatNumber(row["販売価格"])} width={90} bold />
+                        <HoverCell value={row["カテゴリ"]} width={110} />
+                        <td
+                          title={String(row["備考"] ?? "")}
                           style={{
-                            maxHeight: 72,
-                            overflowY: "auto",
-                            overflowX: "hidden",
+                            border: "1px solid #ddd",
+                            padding: 8,
+                            width: 480,
+                            minWidth: 480,
+                            maxWidth: 480,
+                            background: "#fffbe6",
                             whiteSpace: "normal",
-                            wordBreak: "break-word",
                             lineHeight: "1.5",
+                            verticalAlign: "top",
+                            overflow: "hidden",
                           }}
                         >
                           {row["備考"]}
-                        </div>
-                      </td>
+                        </td>
+                        <HoverCell value={formatDate(row["更新日"])} width={90} />
+                      </tr>
 
-                      <TruncateCell
-                        value={formatDate(row["更新日"])}
-                        width={90}
-                        onOpen={(v) => openPopup("更新日", v)}
-                      />
-                    </tr>
+                      {openRow === row._rowId && (
+                        <tr>
+                          <td colSpan={8} style={{ border: "1px solid #ddd", padding: 14, background: "#fafafa" }}>
+                            <div style={{ fontWeight: "bold", marginBottom: 8 }}>行の詳細</div>
+                            <div style={{ display: "grid", gap: 6 }}>
+                              <div><strong>メーカー:</strong> {row["メーカー"]}</div>
+                              <div><strong>商品名:</strong> {row["商品名"]}</div>
+                              <div><strong>型番:</strong> {row["型番"]}</div>
+                              <div><strong>定価:</strong> {formatNumber(row["定価"])}</div>
+                              <div><strong>販売価格:</strong> {formatNumber(row["販売価格"])}</div>
+                              <div><strong>カテゴリ:</strong> {row["カテゴリ"]}</div>
+                              <div><strong>更新日:</strong> {formatDate(row["更新日"])}</div>
+                              <div><strong>備考:</strong> {row["備考"]}</div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   ))}
                 </tbody>
               </table>
@@ -374,93 +379,47 @@ export default function Home({ rawData, error }) {
               <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                 <thead>
                   <tr>
-                    <th style={thStyle}>区分</th>
-                    <th style={thStyle}>工事項目</th>
-                    <th style={thStyle}>単位</th>
-                    <th style={thStyle}>単価</th>
-                    <th style={thStyle}>更新日</th>
+                    <th style={{ ...thStyle, width: 140 }}>区分</th>
+                    <th style={{ ...thStyle, width: 300 }}>工事項目</th>
+                    <th style={{ ...thStyle, width: 90 }}>単位</th>
+                    <th style={{ ...thStyle, width: 110 }}>単価</th>
+                    <th style={{ ...thStyle, width: 90 }}>更新日</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDealerWorks.map((row, i) => (
-                    <tr key={i}>
-                      <TruncateCell value={row["区分"]} width={130} onOpen={(v) => openPopup("区分", v)} />
-                      <TruncateCell value={row["工事項目"]} width={260} onOpen={(v) => openPopup("工事項目", v)} />
-                      <TruncateCell value={row["単位"]} width={90} onOpen={(v) => openPopup("単位", v)} />
-                      <TruncateCell
-                        value={formatNumber(row["単価"])}
-                        width={110}
-                        bold
-                        onOpen={(v) => openPopup("単価", v)}
-                      />
-                      <TruncateCell
-                        value={formatDate(row["更新日"])}
-                        width={90}
-                        onOpen={(v) => openPopup("更新日", v)}
-                      />
-                    </tr>
+                  {filteredDealerWorks.map((row) => (
+                    <>
+                      <tr
+                        key={row._rowId}
+                        onClick={() => toggleRow(row._rowId)}
+                        style={{ cursor: "pointer" }}
+                        title="クリックでこの行の詳細を表示"
+                      >
+                        <HoverCell value={row["区分"]} width={140} />
+                        <HoverCell value={row["工事項目"]} width={300} />
+                        <HoverCell value={row["単位"]} width={90} />
+                        <HoverCell value={formatNumber(row["単価"])} width={110} bold />
+                        <HoverCell value={formatDate(row["更新日"])} width={90} />
+                      </tr>
+
+                      {openRow === row._rowId && (
+                        <tr>
+                          <td colSpan={5} style={{ border: "1px solid #ddd", padding: 14, background: "#fafafa" }}>
+                            <div style={{ fontWeight: "bold", marginBottom: 8 }}>行の詳細</div>
+                            <div style={{ display: "grid", gap: 6 }}>
+                              <div><strong>区分:</strong> {row["区分"]}</div>
+                              <div><strong>工事項目:</strong> {row["工事項目"]}</div>
+                              <div><strong>単位:</strong> {row["単位"]}</div>
+                              <div><strong>単価:</strong> {formatNumber(row["単価"])}</div>
+                              <div><strong>更新日:</strong> {formatDate(row["更新日"])}</div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
-
-          {popupText !== "" && (
-            <div
-              onClick={closePopup}
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,0.45)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 9999,
-                padding: 20,
-              }}
-            >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  width: "min(700px, 100%)",
-                  maxHeight: "80vh",
-                  background: "#fff",
-                  borderRadius: 12,
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-                  padding: 20,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <h3 style={{ margin: 0 }}>{popupTitle}</h3>
-                  <button onClick={closePopup} style={{ padding: "6px 10px" }}>
-                    閉じる
-                  </button>
-                </div>
-
-                <div
-                  style={{
-                    border: "1px solid #ddd",
-                    borderRadius: 8,
-                    padding: 14,
-                    maxHeight: "60vh",
-                    overflowY: "auto",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    lineHeight: "1.6",
-                    background: "#fafafa",
-                  }}
-                >
-                  {popupText}
-                </div>
-              </div>
             </div>
           )}
         </>
