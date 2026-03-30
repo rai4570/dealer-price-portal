@@ -71,11 +71,6 @@ export default function Home({ rawData, error }) {
   const [searchText, setSearchText] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
 
-  const [quoteItems, setQuoteItems] = useState([]);
-  const [quoteTitle, setQuoteTitle] = useState("御見積書");
-  const [quoteCustomer, setQuoteCustomer] = useState("");
-  const [showQuote, setShowQuote] = useState(false);
-
   const productMap = useMemo(() => {
     const map = new Map();
     products.forEach((p) => map.set(String(p["商品ID"]), p));
@@ -146,10 +141,6 @@ export default function Home({ rawData, error }) {
     });
   }, [dealerWorks, searchText]);
 
-  const quoteTotal = useMemo(() => {
-    return quoteItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
-  }, [quoteItems]);
-
   const handleLogin = (e) => {
     e.preventDefault();
     setLoginError("");
@@ -178,49 +169,10 @@ export default function Home({ rawData, error }) {
     setTab("products");
     setSearchText("");
     setCategoryFilter("");
-    setQuoteItems([]);
-    setShowQuote(false);
-  };
-
-  const addQuoteItem = (row) => {
-    const exists = quoteItems.find((x) => String(x.id) === String(row["商品ID"]));
-    if (exists) {
-      setQuoteItems((prev) =>
-        prev.map((x) =>
-          String(x.id) === String(row["商品ID"])
-            ? { ...x, qty: Number(x.qty) + 1 }
-            : x
-        )
-      );
-      return;
-    }
-
-    setQuoteItems((prev) => [
-      ...prev,
-      {
-        id: row["商品ID"],
-        maker: row["メーカー"],
-        name: row["商品名"],
-        model: row["型番"],
-        price: Number(row["販売価格"] || 0),
-        qty: 1,
-      },
-    ]);
-  };
-
-  const updateQuoteQty = (id, qty) => {
-    const nextQty = Math.max(1, Number(qty) || 1);
-    setQuoteItems((prev) =>
-      prev.map((x) => (String(x.id) === String(id) ? { ...x, qty: nextQty } : x))
-    );
-  };
-
-  const removeQuoteItem = (id) => {
-    setQuoteItems((prev) => prev.filter((x) => String(x.id) !== String(id)));
   };
 
   return (
-    <div style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 1280, margin: "0 auto" }}>
+    <div style={{ padding: 24, fontFamily: "sans-serif", maxWidth: 1400, margin: "0 auto" }}>
       <h1 style={{ marginBottom: 8 }}>販売店専用価格ポータル</h1>
       <p style={{ color: "#555", marginBottom: 24 }}>A版：Googleスプレッドシート連動</p>
 
@@ -302,242 +254,276 @@ export default function Home({ rawData, error }) {
             >
               工事費単価
             </button>
-            <button
-              onClick={() => setShowQuote((prev) => !prev)}
-              style={{
-                padding: "10px 16px",
-                background: showQuote ? "#111" : "#eee",
-                color: showQuote ? "#fff" : "#000",
-                border: "none",
-                borderRadius: 8,
-              }}
-            >
-              見積書
-            </button>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: showQuote ? "2fr 1fr" : "1fr",
-              gap: 20,
-              alignItems: "start",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  marginBottom: 16,
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                }}
-              >
-                <input
-                  placeholder={tab === "products" ? "メーカー・商品名・型番で検索" : "区分・工事項目で検索"}
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  style={{ padding: 10, minWidth: 280 }}
-                />
+          <div style={{ display: "block" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                marginBottom: 16,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <input
+                placeholder={tab === "products" ? "メーカー・商品名・型番で検索" : "区分・工事項目で検索"}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={{ padding: 10, minWidth: 280 }}
+              />
 
-                {tab === "products" && (
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    style={{ padding: 10, minWidth: 180 }}
-                  >
-                    <option value="">すべてのカテゴリ</option>
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {tab === "products" ? (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        {["メーカー", "商品名", "型番", "定価", "販売価格", "カテゴリ", "備考", "更新日", "見積"].map((h) => (
-                          <th
-                            key={h}
-                            style={{ border: "1px solid #ddd", padding: 10, background: "#f5f5f5", textAlign: "left" }}
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredDealerPrices.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} style={{ border: "1px solid #ddd", padding: 12 }}>
-                            表示できる商品がありません。
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredDealerPrices.map((row, idx) => (
-                          <tr key={idx}>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{row["メーカー"]}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{row["商品名"]}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{row["型番"]}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{formatNumber(row["定価"])}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10, fontWeight: "bold" }}>
-                              {formatNumber(row["販売価格"])}
-                            </td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{row["カテゴリ"]}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{row["備考"]}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{formatDate(row["更新日"])}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>
-                              <button onClick={() => addQuoteItem(row)}>追加</button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        {["区分", "工事項目", "単位", "単価", "更新日"].map((h) => (
-                          <th
-                            key={h}
-                            style={{ border: "1px solid #ddd", padding: 10, background: "#f5f5f5", textAlign: "left" }}
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredDealerWorks.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} style={{ border: "1px solid #ddd", padding: 12 }}>
-                            表示できる工事費がありません。
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredDealerWorks.map((row, idx) => (
-                          <tr key={idx}>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{row["区分"]}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{row["工事項目"]}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{row["単位"]}</td>
-                            <td style={{ border: "1px solid #ddd", padding: 10, fontWeight: "bold" }}>
-                              {formatNumber(row["単価"])}
-                            </td>
-                            <td style={{ border: "1px solid #ddd", padding: 10 }}>{formatDate(row["更新日"])}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+              {tab === "products" && (
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  style={{ padding: 10, minWidth: 180 }}
+                >
+                  <option value="">すべてのカテゴリ</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
 
-            {showQuote && (
-              <div
-                style={{
-                  border: "1px solid #ddd",
-                  borderRadius: 12,
-                  padding: 16,
-                  background: "#fff",
-                  position: "sticky",
-                  top: 20,
-                }}
-              >
-                <h3 style={{ marginTop: 0 }}>見積書</h3>
-
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ marginBottom: 6 }}>タイトル</div>
-                  <input
-                    value={quoteTitle}
-                    onChange={(e) => setQuoteTitle(e.target.value)}
-                    style={{ width: "100%", padding: 10, boxSizing: "border-box" }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ marginBottom: 6 }}>宛名</div>
-                  <input
-                    value={quoteCustomer}
-                    onChange={(e) => setQuoteCustomer(e.target.value)}
-                    placeholder="例：AXIA御中"
-                    style={{ width: "100%", padding: 10, boxSizing: "border-box" }}
-                  />
-                </div>
-
-                {quoteItems.length === 0 ? (
-                  <div style={{ color: "#666" }}>見積対象の商品を追加してください。</div>
-                ) : (
-                  <>
-                    <div style={{ overflowX: "auto", marginBottom: 12 }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr>
-                            <th style={{ border: "1px solid #ddd", padding: 8, background: "#f5f5f5" }}>商品</th>
-                            <th style={{ border: "1px solid #ddd", padding: 8, background: "#f5f5f5" }}>単価</th>
-                            <th style={{ border: "1px solid #ddd", padding: 8, background: "#f5f5f5" }}>数量</th>
-                            <th style={{ border: "1px solid #ddd", padding: 8, background: "#f5f5f5" }}>小計</th>
-                            <th style={{ border: "1px solid #ddd", padding: 8, background: "#f5f5f5" }}>削除</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {quoteItems.map((item) => (
-                            <tr key={item.id}>
-                              <td style={{ border: "1px solid #ddd", padding: 8 }}>
-                                {item.name}
-                                <br />
-                                <span style={{ color: "#666", fontSize: 12 }}>{item.model}</span>
-                              </td>
-                              <td style={{ border: "1px solid #ddd", padding: 8 }}>{formatNumber(item.price)}</td>
-                              <td style={{ border: "1px solid #ddd", padding: 8 }}>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item.qty}
-                                  onChange={(e) => updateQuoteQty(item.id, e.target.value)}
-                                  style={{ width: 70, padding: 6 }}
-                                />
-                              </td>
-                              <td style={{ border: "1px solid #ddd", padding: 8 }}>
-                                {formatNumber(Number(item.price) * Number(item.qty))}
-                              </td>
-                              <td style={{ border: "1px solid #ddd", padding: 8 }}>
-                                <button onClick={() => removeQuoteItem(item.id)}>削除</button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div style={{ textAlign: "right", fontSize: 20, fontWeight: "bold", marginBottom: 16 }}>
-                      合計：¥{formatNumber(quoteTotal)}
-                    </div>
-
-                    <button
-                      onClick={() => window.print()}
-                      style={{
-                        width: "100%",
-                        padding: "12px 16px",
-                        background: "#111",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 8,
-                      }}
-                    >
-                      印刷 / PDF保存
-                    </button>
-                  </>
-                )}
+            {tab === "products" ? (
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    tableLayout: "fixed",
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      {["メーカー", "商品名", "型番", "定価", "販売価格", "カテゴリ", "備考", "更新日"].map((h) => (
+                        <th
+                          key={h}
+                          style={{
+                            border: "1px solid #ddd",
+                            padding: 10,
+                            background: "#f5f5f5",
+                            textAlign: "left",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDealerPrices.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} style={{ border: "1px solid #ddd", padding: 12 }}>
+                          表示できる商品がありません。
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDealerPrices.map((row, idx) => (
+                        <tr key={idx}>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              width: "90px",
+                            }}
+                          >
+                            {row["メーカー"]}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              width: "170px",
+                            }}
+                          >
+                            {row["商品名"]}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              width: "110px",
+                            }}
+                          >
+                            {row["型番"]}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              width: "90px",
+                            }}
+                          >
+                            {formatNumber(row["定価"])}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              fontWeight: "bold",
+                              whiteSpace: "nowrap",
+                              width: "100px",
+                            }}
+                          >
+                            {formatNumber(row["販売価格"])}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              width: "110px",
+                            }}
+                          >
+                            {row["カテゴリ"]}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              width: "280px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                maxWidth: "100%",
+                                overflowX: "auto",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {row["備考"]}
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              width: "110px",
+                            }}
+                          >
+                            {formatDate(row["更新日"])}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    tableLayout: "fixed",
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      {["区分", "工事項目", "単位", "単価", "更新日"].map((h) => (
+                        <th
+                          key={h}
+                          style={{
+                            border: "1px solid #ddd",
+                            padding: 10,
+                            background: "#f5f5f5",
+                            textAlign: "left",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDealerWorks.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ border: "1px solid #ddd", padding: 12 }}>
+                          表示できる工事費がありません。
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDealerWorks.map((row, idx) => (
+                        <tr key={idx}>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              width: "120px",
+                            }}
+                          >
+                            {row["区分"]}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {row["工事項目"]}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              width: "90px",
+                            }}
+                          >
+                            {row["単位"]}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              fontWeight: "bold",
+                              whiteSpace: "nowrap",
+                              width: "120px",
+                            }}
+                          >
+                            {formatNumber(row["単価"])}
+                          </td>
+                          <td
+                            style={{
+                              border: "1px solid #ddd",
+                              padding: 10,
+                              whiteSpace: "nowrap",
+                              width: "110px",
+                            }}
+                          >
+                            {formatDate(row["更新日"])}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
