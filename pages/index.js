@@ -79,6 +79,14 @@ function TruncateCell({ value, width, bold = false, onOpen }) {
   );
 }
 
+const thStyle = {
+  border: "1px solid #ddd",
+  padding: 10,
+  background: "#f5f5f5",
+  textAlign: "left",
+  whiteSpace: "nowrap",
+};
+
 export default function Home({ rawData, error }) {
   const shops = useMemo(() => toObjects(rawData.shop), [rawData.shop]);
   const products = useMemo(() => toObjects(rawData.product), [rawData.product]);
@@ -309,16 +317,16 @@ export default function Home({ rawData, error }) {
                   {filteredDealerPrices.map((row, i) => (
                     <tr key={i}>
                       <TruncateCell value={row["メーカー"]} width={100} onOpen={(v) => openPopup("メーカー", v)} />
-                      <TruncateCell value={row["商品名"]} width={210} onOpen={(v) => openPopup("商品名", v)} />
-                      <TruncateCell value={row["型番"]} width={180} onOpen={(v) => openPopup("型番", v)} />
+                      <TruncateCell value={row["商品名"]} width={190} onOpen={(v) => openPopup("商品名", v)} />
+                      <TruncateCell value={row["型番"]} width={150} onOpen={(v) => openPopup("型番", v)} />
                       <TruncateCell
                         value={formatNumber(row["定価"])}
-                        width={95}
+                        width={80}
                         onOpen={(v) => openPopup("定価", v)}
                       />
                       <TruncateCell
                         value={formatNumber(row["販売価格"])}
-                        width={95}
+                        width={90}
                         bold
                         onOpen={(v) => openPopup("販売価格", v)}
                       />
@@ -330,20 +338,21 @@ export default function Home({ rawData, error }) {
                         style={{
                           border: "1px solid #ddd",
                           padding: 8,
-                          width: 340,
-                          maxWidth: 340,
+                          width: 420,
+                          maxWidth: 420,
                           cursor: "pointer",
                           verticalAlign: "top",
+                          background: "#fffbe6",
                         }}
                       >
                         <div
                           style={{
-                            maxHeight: 60,
+                            maxHeight: 72,
                             overflowY: "auto",
                             overflowX: "hidden",
                             whiteSpace: "normal",
                             wordBreak: "break-word",
-                            lineHeight: "1.4",
+                            lineHeight: "1.5",
                           }}
                         >
                           {row["備考"]}
@@ -352,7 +361,7 @@ export default function Home({ rawData, error }) {
 
                       <TruncateCell
                         value={formatDate(row["更新日"])}
-                        width={95}
+                        width={90}
                         onOpen={(v) => openPopup("更新日", v)}
                       />
                     </tr>
@@ -386,7 +395,7 @@ export default function Home({ rawData, error }) {
                       />
                       <TruncateCell
                         value={formatDate(row["更新日"])}
-                        width={95}
+                        width={90}
                         onOpen={(v) => openPopup("更新日", v)}
                       />
                     </tr>
@@ -459,11 +468,3 @@ export default function Home({ rawData, error }) {
     </div>
   );
 }
-
-const thStyle = {
-  border: "1px solid #ddd",
-  padding: 10,
-  background: "#f5f5f5",
-  textAlign: "left",
-  whiteSpace: "nowrap",
-};
